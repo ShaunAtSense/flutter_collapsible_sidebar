@@ -30,22 +30,29 @@ class CollapsibleSidebar extends StatefulWidget {
     this.maxWidth = 270,
     this.borderRadius = 15,
     this.iconSize = 40,
+    this.customContentPaddingLeft = -1,
     this.toggleButtonIcon = Icons.chevron_right,
     this.backgroundColor = const Color(0xff2B3138),
+    this.avatarBackgroundColor = const Color(0xff6A7886),
     this.selectedIconBox = const Color(0xff2F4047),
     this.selectedIconColor = const Color(0xff4AC6EA),
     this.selectedTextColor = const Color(0xffF3F7F7),
     this.unselectedIconColor = const Color(0xff6A7886),
     this.unselectedTextColor = const Color(0xffC0C7D0),
+    this.badgeBackgroundColor = const Color(0xffFF6767),
+    this.badgeTextColor = const Color(0xffF3F7F7),
     this.duration = const Duration(milliseconds: 500),
     this.curve = Curves.fastLinearToSlowEaseIn,
     this.screenPadding = 4,
     this.showToggleButton = true,
     this.topPadding = 0,
     this.bottomPadding = 0,
+    this.itemPadding = 10,
+    this.customItemOffsetX = -1,
     this.fitItemsToBottom = false,
     this.onTitleTap,
     this.isCollapsed = true,
+    this.collapseOnBodyTap = true,
     this.showTitle = true,
     this.sidebarBoxShadow = const [
       BoxShadow(
@@ -57,33 +64,41 @@ class CollapsibleSidebar extends StatefulWidget {
     ],
   }) : super(key: key);
 
+  final avatarImg;
   final String title, toggleTitle;
   final MouseCursor onHoverPointer;
   final TextStyle? titleStyle, textStyle, toggleTitleStyle;
-  final bool titleBack;
   final IconData titleBackIcon;
   final Widget body;
-  final avatarImg;
-  final showTitle;
-  final bool showToggleButton, fitItemsToBottom, isCollapsed;
+  final bool showToggleButton,
+      fitItemsToBottom,
+      isCollapsed,
+      titleBack,
+      showTitle,
+      collapseOnBodyTap;
   final List<CollapsibleItem> items;
   final double height,
       minWidth,
       maxWidth,
       borderRadius,
       iconSize,
+      customItemOffsetX,
       padding = 10,
-      itemPadding = 10,
+      itemPadding,
       topPadding,
       bottomPadding,
-      screenPadding;
+      screenPadding,
+      customContentPaddingLeft;
   final IconData toggleButtonIcon;
   final Color backgroundColor,
+      avatarBackgroundColor,
       selectedIconBox,
       selectedIconColor,
       selectedTextColor,
       unselectedIconColor,
-      unselectedTextColor;
+      unselectedTextColor,
+      badgeBackgroundColor,
+      badgeTextColor;
   final Duration duration;
   final Curve curve;
   final VoidCallback? onTitleTap;
@@ -116,17 +131,17 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
     super.initState();
 
     tempWidth = widget.maxWidth > 270 ? 270 : widget.maxWidth;
-
     _currWidth = widget.minWidth;
     _delta = tempWidth - widget.minWidth;
     _delta1By4 = _delta * 0.25;
     _delta3by4 = _delta * 0.75;
     _maxOffsetX = widget.padding * 2 + widget.iconSize;
     _maxOffsetY = widget.itemPadding * 2 + widget.iconSize;
+
+    _selectedItemIndex = 0;
     for (var i = 0; i < widget.items.length; i++) {
-      if (!widget.items[i].isSelected) continue;
-      _selectedItemIndex = i;
-      break;
+      if (widget.items[i].isSelected) break;
+      _selectedItemIndex += 1;
     }
 
     _controller = AnimationController(
@@ -184,7 +199,11 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
 
   void _onHorizontalDragUpdate(DragUpdateDetails details) {
     if (details.primaryDelta != null) {
-      _currWidth += details.primaryDelta!;
+      if (Directionality.of(context) == TextDirection.ltr) {
+        _currWidth += details.primaryDelta!;
+      } else {
+        _currWidth -= details.primaryDelta!;
+      }
       if (_currWidth > tempWidth)
         _currWidth = tempWidth;
       else if (_currWidth < widget.minWidth)
@@ -210,93 +229,144 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      alignment: Alignment.topLeft,
-      children: [
-        Padding(
-          padding: EdgeInsets.only(left: widget.minWidth * 1.1),
-          child: widget.body,
-        ),
-        Padding(
-          padding: EdgeInsets.all(widget.screenPadding),
-          child: GestureDetector(
-            onHorizontalDragUpdate: _onHorizontalDragUpdate,
-            onHorizontalDragEnd: _onHorizontalDragEnd,
-            child: CollapsibleContainer(
-              height: widget.height,
-              width: _currWidth,
-              padding: widget.padding,
-              borderRadius: widget.borderRadius,
-              color: widget.backgroundColor,
-              sidebarBoxShadow: widget.sidebarBoxShadow,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  widget.showTitle ? _avatar : Container(),
-                  SizedBox(
-                    height: widget.topPadding,
-                  ),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      physics: BouncingScrollPhysics(),
-                      reverse: widget.fitItemsToBottom,
-                      child: Stack(
-                        children: [
-                          CollapsibleItemSelection(
-                            height: _maxOffsetY,
-                            offsetY: _maxOffsetY * _selectedItemIndex,
-                            color: widget.selectedIconBox,
-                            duration: widget.duration,
-                            curve: widget.curve,
-                          ),
-                          Column(
-                            children: _items,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    height: widget.bottomPadding,
-                  ),
-                  widget.showToggleButton
-                      ? Divider(
-                          color: widget.unselectedIconColor,
-                          indent: 5,
-                          endIndent: 5,
-                          thickness: 1,
-                        )
-                      : SizedBox(
-                          height: 5,
-                        ),
-                  widget.showToggleButton
-                      ? _toggleButton
-                      : SizedBox(
-                          height: widget.iconSize,
-                        ),
-                ],
+    Widget sidebar = Padding(
+      padding: EdgeInsets.all(widget.screenPadding),
+      child: GestureDetector(
+        onHorizontalDragUpdate: _onHorizontalDragUpdate,
+        onHorizontalDragEnd: _onHorizontalDragEnd,
+        child: CollapsibleContainer(
+          height: widget.height,
+          width: _currWidth,
+          padding: widget.padding,
+          borderRadius: widget.borderRadius,
+          color: widget.backgroundColor,
+          sidebarBoxShadow: widget.sidebarBoxShadow,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              widget.showTitle ? _avatar : const SizedBox(),
+              SizedBox(
+                height: widget.topPadding,
               ),
-            ),
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: BouncingScrollPhysics(),
+                  reverse: widget.fitItemsToBottom,
+                  child: Stack(
+                    children: [
+                      CollapsibleItemSelection(
+                        height: _maxOffsetY,
+                        offsetY: _maxOffsetY * _selectedItemIndex,
+                        color: widget.selectedIconBox,
+                        duration: widget.duration,
+                        curve: widget.curve,
+                      ),
+                      Column(
+                        children: _items,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              SizedBox(
+                height: widget.bottomPadding,
+              ),
+              widget.showToggleButton
+                  ? Divider(
+                      color: widget.unselectedIconColor,
+                      indent: 5,
+                      endIndent: 5,
+                      thickness: 1,
+                    )
+                  : SizedBox(
+                      height: 5,
+                    ),
+              widget.showToggleButton
+                  ? _toggleButton
+                  : SizedBox(
+                      height: widget.iconSize,
+                    ),
+            ],
           ),
         ),
-      ],
+      ),
     );
+
+    return _isCollapsed
+        ? Stack(
+            alignment: Directionality.of(context) == TextDirection.ltr
+                ? Alignment.topLeft
+                : Alignment.topRight,
+            children: [
+              Padding(
+                padding: EdgeInsets.only(
+                  left: widget.minWidth *
+                          (widget.customContentPaddingLeft < 0 ? 1.1 : 1) +
+                      (widget.customContentPaddingLeft >= 0
+                          ? widget.customContentPaddingLeft
+                          : 0),
+                ),
+                child: widget.body,
+              ),
+              sidebar,
+            ],
+          )
+        : Stack(
+            alignment: Directionality.of(context) == TextDirection.ltr
+                ? Alignment.topLeft
+                : Alignment.topRight,
+            children: [
+              widget.collapseOnBodyTap
+                  ? GestureDetector(
+                      onTap: () {
+                        _isCollapsed = true;
+                        _animateTo(widget.minWidth);
+                      },
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          left: widget.minWidth *
+                                  (widget.customContentPaddingLeft < 0
+                                      ? 1.1
+                                      : 1) +
+                              (widget.customContentPaddingLeft >= 0
+                                  ? widget.customContentPaddingLeft
+                                  : 0),
+                        ),
+                        child: widget.body,
+                      ),
+                    )
+                  : Padding(
+                      padding: EdgeInsets.only(
+                        left: widget.minWidth *
+                                (widget.customContentPaddingLeft < 0
+                                    ? 1.1
+                                    : 1) +
+                            (widget.customContentPaddingLeft >= 0
+                                ? widget.customContentPaddingLeft
+                                : 0),
+                      ),
+                      child: widget.body,
+                    ),
+              sidebar,
+            ],
+          );
   }
 
   Widget get _avatar {
     return CollapsibleItemWidget(
       onHoverPointer: widget.onHoverPointer,
       padding: widget.itemPadding,
-      offsetX: _offsetX,
+      offsetX:
+          widget.customItemOffsetX >= 0 ? widget.customItemOffsetX : _offsetX,
       scale: _fraction,
       leading: widget.titleBack
           ? Icon(
               widget.titleBackIcon,
               size: widget.iconSize,
-              color: widget.unselectedIconColor,
+              color: widget.avatarBackgroundColor,
             )
           : CollapsibleAvatar(
-              backgroundColor: widget.unselectedIconColor,
+              backgroundColor: widget.avatarBackgroundColor,
               avatarSize: widget.iconSize,
               name: widget.title,
               avatarImg: widget.avatarImg,
@@ -304,6 +374,8 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
             ),
       title: widget.title,
       textStyle: _textStyle(widget.unselectedTextColor, widget.titleStyle),
+      isCollapsed: _isCollapsed,
+      minWidth: widget.minWidth,
       onTap: widget.onTitleTap,
     );
   }
@@ -320,15 +392,43 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
       return CollapsibleItemWidget(
         onHoverPointer: widget.onHoverPointer,
         padding: widget.itemPadding,
-        offsetX: _offsetX,
+        offsetX:
+            widget.customItemOffsetX >= 0 ? widget.customItemOffsetX : _offsetX,
         scale: _fraction,
-        leading: Icon(
-          item.icon,
-          size: widget.iconSize,
-          color: iconColor,
-        ),
+        leading: item.badgeCount != null && item.badgeCount! > 0
+            ? Badge.count(
+                backgroundColor: widget.badgeBackgroundColor,
+                textColor: widget.badgeTextColor,
+                count: item.badgeCount!,
+                child: Icon(
+                  item.icon,
+                  size: widget.iconSize,
+                  color: iconColor,
+                ))
+            : item.iconImage != null
+                ? CircleAvatar(
+                    radius: widget.iconSize / 2,
+                    backgroundImage: item.iconImage,
+                    backgroundColor: Colors.transparent,
+                  )
+                : (item.icon != null
+                    ? Icon(
+                        item.icon,
+                        size: widget.iconSize,
+                        color: iconColor,
+                      )
+                    : SizedBox(
+                        width: widget.iconSize,
+                        height: widget.iconSize,
+                      )),
+        iconSize: widget.iconSize,
+        iconColor: iconColor,
         title: item.text,
         textStyle: _textStyle(textColor, widget.textStyle),
+        isCollapsed: _isCollapsed,
+        minWidth: widget.minWidth,
+        isSelected: item.isSelected,
+        parentComponent: true,
         onTap: () {
           if (item.isSelected) return;
           item.onPressed();
@@ -336,6 +436,12 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
           widget.items[_selectedItemIndex].isSelected = false;
           setState(() => _selectedItemIndex = index);
         },
+        onLongPress: () {
+          if (item.onHold != null) {
+            item.onHold!();
+          }
+        },
+        subItems: item.subItems,
       );
     });
   }
@@ -344,7 +450,8 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
     return CollapsibleItemWidget(
       onHoverPointer: widget.onHoverPointer,
       padding: widget.itemPadding,
-      offsetX: _offsetX,
+      offsetX:
+          widget.customItemOffsetX >= 0 ? widget.customItemOffsetX : _offsetX,
       scale: _fraction,
       leading: Transform.rotate(
         angle: _currAngle,
@@ -357,6 +464,8 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
       title: widget.toggleTitle,
       textStyle:
           _textStyle(widget.unselectedTextColor, widget.toggleTitleStyle),
+      isCollapsed: _isCollapsed,
+      minWidth: widget.minWidth,
       onTap: () {
         _isCollapsed = !_isCollapsed;
         var endWidth = _isCollapsed ? widget.minWidth : tempWidth;
@@ -366,7 +475,9 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
   }
 
   double get _fraction => (_currWidth - widget.minWidth) / _delta;
+
   double get _currAngle => -math.pi * _fraction;
+
   double get _offsetX => _maxOffsetX * _fraction;
 
   TextStyle _textStyle(Color color, TextStyle? style) {

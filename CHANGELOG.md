@@ -1,5 +1,4 @@
-## [2.0.2+2] - 16-09-2022
+## [2.0.7] - 20-11-2023
 
-* A collapsible sidebar for Flutter apps implementing the Material Design.
-* Supports Null-Safety
-* Added mouse region detection
+- added alert badges on collapsible items
+- added new properties like customContentPaddingLeft, customItemOffsetX, avatarBackgroundColor, badgeTextColor, badgeBackgroundColor, badgeCount

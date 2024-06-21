@@ -4,13 +4,21 @@ import 'package:flutter/widgets.dart';
 class CollapsibleItem {
   CollapsibleItem({
     required this.text,
-    required this.icon,
+    this.badgeCount,
+    this.icon,
+    this.iconImage,
     required this.onPressed,
+    this.onHold,
     this.isSelected = false,
+    this.subItems,
   });
 
   final String text;
-  final IconData icon;
+  int? badgeCount;
+  IconData? icon;
+  ImageProvider? iconImage;
   final Function onPressed;
+  final Function? onHold;
   bool isSelected;
+  List<CollapsibleItem>? subItems;
 }
